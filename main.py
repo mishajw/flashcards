@@ -1,5 +1,4 @@
 from collections import defaultdict
-import dataclasses
 import datetime
 import hashlib
 import json
@@ -9,13 +8,14 @@ import sys
 from typing import Dict, List, Tuple
 import re
 import matplotlib.pyplot as plt
-
-import spaced_repetition
 import streamlit as st
 import pandas as pd
-from classes import Card, CardMd, CardStats, CardId
+
+import spaced_repetition
+from classes import Card, CardMd, CardId
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
+STATE_FILE = ".flashcards.json"
 
 
 def main():
@@ -110,7 +110,7 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
 
 def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.CardStats]:
     result: Dict[CardId, spaced_repetition.CardStats] = {}
-    history_path = root_dir / ".flashcards.json"
+    history_path = root_dir / STATE_FILE
     if history_path.is_file():
         with history_path.open("r") as f:
             card_histories = json.load(f)
@@ -140,7 +140,7 @@ def _write_card_stats(
                 e_factor=card_histories[card_id].e_factor,
             )
         )
-    with (root_dir / ".flashcards.json").open("w") as f:
+    with (root_dir / STATE_FILE).open("w") as f:
         json.dump(result, f, indent=4)
 
 
