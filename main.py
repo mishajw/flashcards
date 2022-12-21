@@ -2,6 +2,7 @@ from collections import defaultdict
 import dataclasses
 import datetime
 import hashlib
+import json
 from pathlib import Path
 import pathlib
 import sys
@@ -9,28 +10,12 @@ from typing import Dict, List, Tuple
 import re
 import matplotlib.pyplot as plt
 
-import card_histories as card_histories_
-from common import CardId
 import spaced_repetition
 import streamlit as st
 import pandas as pd
+from classes import Card, CardMd, CardStats, CardId
 
-
-@dataclasses.dataclass
-class Card:
-    id: CardId
-    spaced_repetition: spaced_repetition.SpacedRepetition
-    root_dir: pathlib.Path
-    md: str
-
-    def due_date(self) -> datetime.date:
-        return max(self.spaced_repetition.next_revision.date(), datetime.date.today())
-
-
-@dataclasses.dataclass
-class CardMd:
-    id: CardId
-    md: str
+DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
 
 
 def main():
@@ -40,13 +25,11 @@ def main():
     assert root_dir.is_dir()
 
     card_mds = _read_card_mds(root_dir)
-    card_histories = card_histories_.read(root_dir)
+    card_histories = _read_card_stats(root_dir)
     cards = [
         Card(
             id=card_md.id,
-            spaced_repetition=card_histories.get(
-                card_md.id, spaced_repetition.SpacedRepetition.default()
-            ),
+            card_stats=card_histories.get(card_md.id, spaced_repetition.default_card_stats()),
             root_dir=root_dir,
             md=card_md.md,
         )
@@ -61,7 +44,7 @@ def main():
         card = min(
             cards,
             key=lambda c: hashlib.sha256(
-                str((c.id, c.spaced_repetition.num_revisions, 2)).encode()
+                str((c.id, c.card_stats.num_revisions, 2)).encode()
             ).hexdigest(),
         )
         st.write(f"**due**={len(cards)}, **file**={card.id[0]}, **root**={root_dir}")
@@ -74,10 +57,8 @@ def main():
                 if st.button(rating):
                     quality = i
         if quality is not None:
-            card_histories[card.id] = spaced_repetition.update_history(
-                card.spaced_repetition, quality
-            )
-            card_histories_.write(root_dir, card_histories)
+            card_histories[card.id] = spaced_repetition.update_history(card.card_stats, quality)
+            _write_card_stats(root_dir, card_histories)
             st.experimental_rerun()
 
         st.write("---")
@@ -125,6 +106,42 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
         if result[card_id].strip() == "" or card_id in skip_card_ids:
             del result[card_id]
     return [CardMd(card_id, md) for card_id, md in result.items()]
+
+
+def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.CardStats]:
+    result: Dict[CardId, spaced_repetition.CardStats] = {}
+    history_path = root_dir / ".flashcards.json"
+    if history_path.is_file():
+        with history_path.open("r") as f:
+            card_histories = json.load(f)
+        for card_history in card_histories:
+            result[tuple(card_history["headings"])] = spaced_repetition.CardStats(
+                next_revision=datetime.datetime.strptime(
+                    card_history["next_revision"], DATETIME_FMT
+                ),
+                num_revisions=card_history["num_revisions"],
+                last_interval_days=card_history["last_interval_days"],
+                e_factor=card_history["e_factor"],
+            )
+    return result
+
+
+def _write_card_stats(
+    root_dir: pathlib.Path, card_histories: Dict[CardId, spaced_repetition.CardStats]
+) -> None:
+    result = []
+    for card_id in card_histories:
+        result.append(
+            dict(
+                headings=list(card_id),
+                next_revision=card_histories[card_id].next_revision.strftime(DATETIME_FMT),
+                num_revisions=card_histories[card_id].num_revisions,
+                last_interval_days=card_histories[card_id].last_interval_days,
+                e_factor=card_histories[card_id].e_factor,
+            )
+        )
+    with (root_dir / ".flashcards.json").open("w") as f:
+        json.dump(result, f, indent=4)
 
 
 if __name__ == "__main__":

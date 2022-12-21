@@ -9,31 +9,31 @@ DEFAULT_E_FACTOR = 2.5
 
 
 @dataclasses.dataclass
-class SpacedRepetition:
+class CardStats:
     next_revision: datetime.datetime
     num_revisions: int
     last_interval_days: int
     e_factor: float
 
-    @classmethod
-    def default(cls) -> "SpacedRepetition":
-        return SpacedRepetition(
-            next_revision=datetime.datetime.now(),
-            num_revisions=0,
-            last_interval_days=1,
-            e_factor=DEFAULT_E_FACTOR,
-        )
+
+def default_card_stats() -> CardStats:
+    return CardStats(
+        next_revision=datetime.datetime.now(),
+        num_revisions=0,
+        last_interval_days=1,
+        e_factor=DEFAULT_E_FACTOR,
+    )
 
 
-def update_history(card_history: SpacedRepetition, quality: int) -> SpacedRepetition:
-    e_factor = _update_e_factor(card_history.e_factor, quality)
-    num_revisions = card_history.num_revisions + 1 if quality > 0 else card_history.num_revisions
+def update_history(card_stats: CardStats, quality: int) -> CardStats:
+    e_factor = _update_e_factor(card_stats.e_factor, quality)
+    num_revisions = card_stats.num_revisions + 1 if quality > 0 else card_stats.num_revisions
     last_interval_days = _update_last_interval_days(
-        card_history.last_interval_days, e_factor, num_revisions
+        card_stats.last_interval_days, e_factor, num_revisions
     )
     next_revision = _update_next_revision(last_interval_days, quality)
     return dataclasses.replace(
-        card_history,
+        card_stats,
         next_revision=next_revision,
         num_revisions=num_revisions,
         last_interval_days=last_interval_days,
