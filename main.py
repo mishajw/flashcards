@@ -17,6 +17,8 @@ from classes import Card, CardId, CardMd
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
 STATE_FILE = ".flashcards.json"
+MD_IMAGE_REGEX = re.compile("!\[(.*)\]\((.*)\)")
+IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 
 def main():
@@ -66,8 +68,11 @@ def main():
         for i, title in enumerate(card.id[1:]):
             st.markdown(("#" * (i + 2)) + " " + title)
         if st.button("Show"):
-            st.markdown(card.md)
-            quality = None
+            md = MD_IMAGE_REGEX.sub("", card.md)
+            st.markdown(md)
+            for alt_text, path in MD_IMAGE_REGEX.findall(card.md):
+                # TODO: Clean this up.
+                st.image(str(IMAGE_ROOT_DIR / path[1:]), alt_text)
 
     if mode == "Stats":
         st.markdown("# Stats")
