@@ -4,6 +4,7 @@ import datetime
 import hashlib
 from pathlib import Path
 import pathlib
+import sys
 from typing import Dict, List, Tuple
 import re
 import matplotlib.pyplot as plt
@@ -13,8 +14,6 @@ from common import CardId
 import spaced_repetition
 import streamlit as st
 import pandas as pd
-
-ROOT_DIR = Path("/home/mishaw/src/site/md/notes")
 
 
 @dataclasses.dataclass
@@ -36,16 +35,19 @@ class CardMd:
 
 def main():
     st.title("Flashcards")
+    root_dir = st.selectbox("Root", options=sys.argv[1:])
+    root_dir = pathlib.Path(root_dir)
+    assert root_dir.is_dir()
 
-    card_mds = _read_card_mds(ROOT_DIR)
-    card_histories = card_histories_.read(ROOT_DIR)
+    card_mds = _read_card_mds(root_dir)
+    card_histories = card_histories_.read(root_dir)
     cards = [
         Card(
             id=card_md.id,
             spaced_repetition=card_histories.get(
                 card_md.id, spaced_repetition.SpacedRepetition.default()
             ),
-            root_dir=ROOT_DIR,
+            root_dir=root_dir,
             md=card_md.md,
         )
         for card_md in card_mds
@@ -62,7 +64,7 @@ def main():
                 str((c.id, c.spaced_repetition.num_revisions, 2)).encode()
             ).hexdigest(),
         )
-        st.write(f"**due**={len(cards)}, **file**={card.id[0]}, **root**={ROOT_DIR}")
+        st.write(f"**due**={len(cards)}, **file**={card.id[0]}, **root**={root_dir}")
 
         ratings = ["Failed", "Hard", "OK", "Easy"]
         quality = None
@@ -75,7 +77,7 @@ def main():
             card_histories[card.id] = spaced_repetition.update_history(
                 card.spaced_repetition, quality
             )
-            card_histories_.write(ROOT_DIR, card_histories)
+            card_histories_.write(root_dir, card_histories)
             st.experimental_rerun()
 
         st.write("---")
