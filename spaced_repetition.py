@@ -1,0 +1,67 @@
+# Algorithm taken from:
+# https://www.supermemo.com/en/archives1990-2015/english/ol/sm2
+
+import datetime
+import math
+import dataclasses
+
+DEFAULT_E_FACTOR = 2.5
+
+
+@dataclasses.dataclass
+class SpacedRepetition:
+    next_revision: datetime.datetime
+    num_revisions: int
+    last_interval_days: int
+    e_factor: float
+
+    @classmethod
+    def default(cls) -> "SpacedRepetition":
+        return SpacedRepetition(
+            next_revision=datetime.datetime.now(),
+            num_revisions=0,
+            last_interval_days=1,
+            e_factor=DEFAULT_E_FACTOR,
+        )
+
+
+def update_history(card_history: SpacedRepetition, quality: int) -> SpacedRepetition:
+    e_factor = _update_e_factor(card_history.e_factor, quality)
+    num_revisions = card_history.num_revisions + 1 if quality > 0 else card_history.num_revisions
+    last_interval_days = _update_last_interval_days(
+        card_history.last_interval_days, e_factor, num_revisions
+    )
+    next_revision = _update_next_revision(last_interval_days, quality)
+    return dataclasses.replace(
+        card_history,
+        next_revision=next_revision,
+        num_revisions=num_revisions,
+        last_interval_days=last_interval_days,
+        e_factor=e_factor,
+    )
+
+
+def _update_e_factor(e_factor: float, quality: int) -> float:
+    assert 0 <= quality <= 3
+    # Change [1, 2, 3] to [3, 4, 5].
+    if quality > 0:
+        quality += 2
+    e_factor = e_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    e_factor = min(2.5, e_factor)
+    e_factor = max(1.3, e_factor)
+    return e_factor
+
+
+def _update_last_interval_days(last_interval_days: int, e_factor: float, num_revisions: int) -> int:
+    if num_revisions == 1:
+        return 1
+    elif num_revisions == 6:
+        return 6
+    else:
+        return math.ceil(last_interval_days * e_factor)
+
+
+def _update_next_revision(last_interval_days: int, quality: int) -> datetime.datetime:
+    if quality == 0:
+        return datetime.datetime.now()
+    return datetime.datetime.now() + datetime.timedelta(days=last_interval_days)
