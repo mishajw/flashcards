@@ -1,9 +1,9 @@
 # Algorithm taken from:
 # https://www.supermemo.com/en/archives1990-2015/english/ol/sm2
 
+import dataclasses
 import datetime
 import math
-import dataclasses
 
 DEFAULT_E_FACTOR = 2.5
 

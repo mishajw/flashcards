@@ -1,18 +1,19 @@
-from collections import defaultdict
 import datetime
 import hashlib
 import json
-from pathlib import Path
 import pathlib
-import sys
-from typing import Dict, List, Tuple
 import re
+import sys
+from collections import defaultdict
+from pathlib import Path
+from typing import Dict, List, Tuple
+
 import matplotlib.pyplot as plt
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 import spaced_repetition
-from classes import Card, CardMd, CardId
+from classes import Card, CardId, CardMd
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
 STATE_FILE = ".flashcards.json"

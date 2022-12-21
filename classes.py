@@ -1,7 +1,7 @@
-from typing import Tuple
 import dataclasses
 import datetime
 import pathlib
+from typing import Tuple
 
 CardId = Tuple[str, ...]
 
