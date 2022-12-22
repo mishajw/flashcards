@@ -44,6 +44,9 @@ def main():
 
     if mode == "Revise":
         cards = list(filter(lambda c: c.due_date() == datetime.date.today(), cards))
+        if not cards:
+            st.write("No cards!")
+            return
         card = min(
             cards,
             key=lambda c: hashlib.sha256(
