@@ -5,15 +5,9 @@ import dataclasses
 import datetime
 import math
 
+from classes import CardStats
+
 DEFAULT_E_FACTOR = 2.5
-
-
-@dataclasses.dataclass
-class CardStats:
-    next_revision: datetime.datetime
-    num_revisions: int
-    last_interval_days: int
-    e_factor: float
 
 
 def default_card_stats() -> CardStats:
