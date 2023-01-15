@@ -49,9 +49,7 @@ def main():
             return
         card = min(
             cards,
-            key=lambda c: hashlib.sha256(
-                str((c.id, c.card_stats.num_revisions, 2)).encode()
-            ).hexdigest(),
+            key=lambda c: hashlib.sha256(str((c.id, c.card_stats)).encode()).hexdigest(),
         )
         st.write(f"**due**={len(cards)}, **file**={card.id[0]}, **root**={root_dir}")
 
@@ -129,6 +127,7 @@ def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.C
                     card_history["next_revision"], DATETIME_FMT
                 ),
                 num_revisions=card_history["num_revisions"],
+                num_failures=card_history.get("num_failures", 0),
                 last_interval_days=card_history["last_interval_days"],
                 e_factor=card_history["e_factor"],
             )
@@ -145,6 +144,7 @@ def _write_card_stats(
                 headings=list(card_id),
                 next_revision=card_histories[card_id].next_revision.strftime(DATETIME_FMT),
                 num_revisions=card_histories[card_id].num_revisions,
+                num_failures=card_histories[card_id].num_failures,
                 last_interval_days=card_histories[card_id].last_interval_days,
                 e_factor=card_histories[card_id].e_factor,
             )

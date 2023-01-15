@@ -14,6 +14,7 @@ def default_card_stats() -> CardStats:
     return CardStats(
         next_revision=datetime.datetime.now(),
         num_revisions=0,
+        num_failures=0,
         last_interval_days=1,
         e_factor=DEFAULT_E_FACTOR,
     )
@@ -22,6 +23,7 @@ def default_card_stats() -> CardStats:
 def update_history(card_stats: CardStats, quality: int) -> CardStats:
     e_factor = _update_e_factor(card_stats.e_factor, quality)
     num_revisions = card_stats.num_revisions + 1 if quality > 0 else card_stats.num_revisions
+    num_failures = card_stats.num_failures + 1 if quality == 0 else card_stats.num_failures
     last_interval_days = _update_last_interval_days(
         card_stats.last_interval_days, e_factor, num_revisions
     )
@@ -30,6 +32,7 @@ def update_history(card_stats: CardStats, quality: int) -> CardStats:
         card_stats,
         next_revision=next_revision,
         num_revisions=num_revisions,
+        num_failures=num_failures,
         last_interval_days=last_interval_days,
         e_factor=e_factor,
     )

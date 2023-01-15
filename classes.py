@@ -27,5 +27,6 @@ class CardMd:
 class CardStats:
     next_revision: datetime.datetime
     num_revisions: int
+    num_failures: int
     last_interval_days: int
     e_factor: float
