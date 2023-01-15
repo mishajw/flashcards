@@ -52,7 +52,7 @@ def _update_e_factor(e_factor: float, quality: int) -> float:
 def _update_last_interval_days(last_interval_days: int, e_factor: float, num_revisions: int) -> int:
     if num_revisions == 1:
         return 1
-    elif num_revisions == 6:
+    elif num_revisions == 2:
         return 6
     else:
         return math.ceil(last_interval_days * e_factor)
