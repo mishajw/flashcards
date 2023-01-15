@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import pathlib
-from typing import Tuple
+from typing import Optional, Tuple
 
 CardId = Tuple[str, ...]
 
@@ -14,6 +14,8 @@ class Card:
     md: str
 
     def due_date(self) -> datetime.date:
+        if self.card_stats.next_revision is None:
+            return datetime.date.today()
         return max(self.card_stats.next_revision.date(), datetime.date.today())
 
 
@@ -25,7 +27,7 @@ class CardMd:
 
 @dataclasses.dataclass
 class CardStats:
-    next_revision: datetime.datetime
+    next_revision: Optional[datetime.datetime]
     num_revisions: int
     num_failures: int
     last_interval_days: int

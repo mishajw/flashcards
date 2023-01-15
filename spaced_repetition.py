@@ -12,7 +12,7 @@ DEFAULT_E_FACTOR = 2.5
 
 def default_card_stats() -> CardStats:
     return CardStats(
-        next_revision=datetime.datetime.now(),
+        next_revision=None,
         num_revisions=0,
         num_failures=0,
         last_interval_days=1,
