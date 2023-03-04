@@ -16,6 +16,7 @@ def default_card_stats() -> CardStats:
             datetime.date.today(),
             datetime.datetime.min.time(),
         ),
+        last_successful_revision=None,
         num_revisions=0,
         num_failures=0,
         last_interval_days=1,
@@ -31,9 +32,13 @@ def update_history(card_stats: CardStats, quality: int) -> CardStats:
         card_stats.last_interval_days, e_factor, num_revisions
     )
     next_revision = _update_next_revision(last_interval_days, quality)
+    last_successful_revision = card_stats.last_successful_revision
+    if quality > 0:
+        last_successful_revision = datetime.datetime.now()
     return dataclasses.replace(
         card_stats,
         next_revision=next_revision,
+        last_successful_revision=last_successful_revision,
         num_revisions=num_revisions,
         num_failures=num_failures,
         last_interval_days=last_interval_days,
