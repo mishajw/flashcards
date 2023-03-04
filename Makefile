@@ -5,7 +5,7 @@ install:
 
 .PHONY: run
 run:
-	.env/bin/streamlit run main.py -- $(ARGS)
+	.env/bin/streamlit run main.py --server.headless true -- $(ARGS)
 
 .PHONY: format
 format:
