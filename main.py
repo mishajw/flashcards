@@ -23,7 +23,10 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 def main():
     st.title("Flashcards")
-    root_dir = st.selectbox("Root", options=sys.argv[1:])
+    root_column, mode_column = st.columns([1, 1])
+
+    with root_column:
+        root_dir = st.selectbox("Root", options=sys.argv[1:])
     root_dir = pathlib.Path(root_dir)
     assert root_dir.is_dir()
 
@@ -39,7 +42,8 @@ def main():
         for card_md in card_mds
     ]
 
-    mode = st.selectbox("Mode", options=["Revise", "Stats"])
+    with mode_column:
+        mode = st.selectbox("Mode", options=["Revise", "Stats"])
     st.write("---")
 
     if mode == "Revise":
@@ -51,11 +55,12 @@ def main():
             cards,
             key=lambda c: hashlib.sha256(str((c.id, c.card_stats)).encode()).hexdigest(),
         )
-        st.write(f"**due**={len(cards)}, **file**={card.id[0]}, **root**={root_dir}")
 
         ratings = ["Failed", "Hard", "OK", "Easy"]
         quality = None
-        columns = st.columns([1] * len(ratings))
+        due_column, *columns = st.columns([1] * (len(ratings) + 1))
+        with due_column:
+            st.write(f"**{len(cards)} cards due**")
         for i, (rating, column) in enumerate(zip(ratings, columns)):
             with column:
                 if st.button(rating):
@@ -66,8 +71,9 @@ def main():
             st.experimental_rerun()
 
         st.write("---")
+        st.write(f"`{root_dir}` / `{card.id[0]}`")
         for i, title in enumerate(card.id[1:]):
-            st.markdown(("#" * (i + 2)) + " " + title)
+            st.markdown(("#" * (i + 3)) + " " + title)
         if st.button("Show"):
             md = MD_IMAGE_REGEX.sub("", card.md)
             st.markdown(md)
