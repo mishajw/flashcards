@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+import itertools
 import json
 import pathlib
 import re
@@ -22,8 +23,6 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 
 def main():
-    st.title("Flashcards")
-
     cards: List[Card] = []
     for root_dir in map(pathlib.Path, sys.argv[1:]):
         assert root_dir.is_dir()
@@ -40,15 +39,14 @@ def main():
         )
 
     mode = st.selectbox("Mode", options=["Revise", "Stats"])
-    st.write("---")
 
     if mode == "Revise":
-        cards = list(filter(lambda c: c.due_date() == datetime.date.today(), cards))
-        if not cards:
+        revision_cards = list(filter(lambda c: c.due_date() == datetime.date.today(), cards))
+        if not revision_cards:
             st.write("No cards!")
             return
         card = min(
-            cards,
+            revision_cards,
             key=lambda c: hashlib.sha256(str((c.id, c.card_stats)).encode()).hexdigest(),
         )
 
@@ -56,18 +54,18 @@ def main():
         quality = None
         due_column, *columns = st.columns([1] * (len(ratings) + 1))
         with due_column:
-            st.write(f"**{len(cards)} cards due**")
+            st.write(f"**{len(revision_cards)} cards due**")
         for i, (rating, column) in enumerate(zip(ratings, columns)):
             with column:
                 if st.button(rating):
                     quality = i
         if quality is not None:
-            card_histories[card.id] = spaced_repetition.update_history(card.card_stats, quality)
-            _write_card_stats(root_dir, card_histories)
+            card.card_stats = spaced_repetition.update_history(card.card_stats, quality)
+            _write_card_stats(cards)
             st.experimental_rerun()
 
         st.write("---")
-        st.write(f"`{root_dir}` / `{card.id[0]}`")
+        st.write(f"`{card.root_dir}` / `{card.id[0]}`")
         for i, title in enumerate(card.id[1:]):
             st.markdown(("#" * (i + 3)) + " " + title)
         if st.button("Show"):
@@ -142,23 +140,27 @@ def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.C
     return result
 
 
-def _write_card_stats(
-    root_dir: pathlib.Path, card_histories: Dict[CardId, spaced_repetition.CardStats]
-) -> None:
-    result = []
-    for card_id in card_histories:
-        result.append(
-            dict(
-                headings=list(card_id),
-                next_revision=card_histories[card_id].next_revision.strftime(DATETIME_FMT),
-                num_revisions=card_histories[card_id].num_revisions,
-                num_failures=card_histories[card_id].num_failures,
-                last_interval_days=card_histories[card_id].last_interval_days,
-                e_factor=card_histories[card_id].e_factor,
+def _write_card_stats(cards: List[Card]) -> None:
+    cards = sorted(cards, key=lambda card: card.id)
+    cards = sorted(cards, key=lambda card: card.root_dir)
+    cards_grouped = itertools.groupby(cards, key=lambda card: card.root_dir)
+    for root_dir, card_group in cards_grouped:
+        result = []
+        for card in card_group:
+            assert card.root_dir == root_dir
+            st.write(card)
+            result.append(
+                dict(
+                    headings=list(card.id),
+                    next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
+                    num_revisions=card.card_stats.num_revisions,
+                    num_failures=card.card_stats.num_failures,
+                    last_interval_days=card.card_stats.last_interval_days,
+                    e_factor=card.card_stats.e_factor,
+                )
             )
-        )
-    with (root_dir / STATE_FILE).open("w") as f:
-        json.dump(result, f, indent=4)
+        with (root_dir / STATE_FILE).open("w") as f:
+            json.dump(result, f, indent=4)
 
 
 if __name__ == "__main__":

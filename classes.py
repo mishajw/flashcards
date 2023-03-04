@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import pathlib
-from typing import Optional, Tuple
+from typing import Tuple
 
 CardId = Tuple[str, ...]
 
@@ -27,7 +27,7 @@ class CardMd:
 
 @dataclasses.dataclass
 class CardStats:
-    next_revision: Optional[datetime.datetime]
+    next_revision: datetime.datetime
     num_revisions: int
     num_failures: int
     last_interval_days: int
