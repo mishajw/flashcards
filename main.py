@@ -23,27 +23,23 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 def main():
     st.title("Flashcards")
-    root_column, mode_column = st.columns([1, 1])
 
-    with root_column:
-        root_dir = st.selectbox("Root", options=sys.argv[1:])
-    root_dir = pathlib.Path(root_dir)
-    assert root_dir.is_dir()
-
-    card_mds = _read_card_mds(root_dir)
-    card_histories = _read_card_stats(root_dir)
-    cards = [
-        Card(
-            id=card_md.id,
-            card_stats=card_histories.get(card_md.id, spaced_repetition.default_card_stats()),
-            root_dir=root_dir,
-            md=card_md.md,
+    cards: List[Card] = []
+    for root_dir in map(pathlib.Path, sys.argv[1:]):
+        assert root_dir.is_dir()
+        card_mds = _read_card_mds(root_dir)
+        card_histories = _read_card_stats(root_dir)
+        cards.extend(
+            Card(
+                id=card_md.id,
+                card_stats=card_histories.get(card_md.id, spaced_repetition.default_card_stats()),
+                root_dir=root_dir,
+                md=card_md.md,
+            )
+            for card_md in card_mds
         )
-        for card_md in card_mds
-    ]
 
-    with mode_column:
-        mode = st.selectbox("Mode", options=["Revise", "Stats"])
+    mode = st.selectbox("Mode", options=["Revise", "Stats"])
     st.write("---")
 
     if mode == "Revise":
