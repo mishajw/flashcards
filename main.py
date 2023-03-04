@@ -87,6 +87,12 @@ def main():
         df.plot.bar(ax=ax)
         st.pyplot(fig)
 
+        cards_md = "Due:\n\n"
+        for card in cards:
+            if card.due_date() == datetime.date.today():
+                cards_md += f"- {' / '.join(card.id)}\n"
+        st.markdown(cards_md)
+
 
 def _read_card_mds(root_dir: Path) -> List[CardMd]:
     md_paths = list(root_dir.rglob("*.md"))
