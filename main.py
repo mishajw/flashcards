@@ -4,6 +4,7 @@ import itertools
 import json
 import pathlib
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -24,7 +25,8 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 def main():
     cards: List[Card] = []
-    for root_dir in map(pathlib.Path, sys.argv[1:]):
+    root_dirs = list(map(pathlib.Path, sys.argv[1:]))
+    for root_dir in root_dirs:
         assert root_dir.is_dir()
         card_mds = _read_card_mds(root_dir)
         card_histories = _read_card_stats(root_dir)
@@ -38,7 +40,7 @@ def main():
             for card_md in card_mds
         )
 
-    mode = st.selectbox("Mode", options=["Revise", "Stats"])
+    mode = st.selectbox("Mode", options=["Revise", "Stats", "Git"])
 
     if mode == "Revise":
         revision_cards = list(filter(lambda c: c.due_date() == datetime.date.today(), cards))
@@ -102,6 +104,28 @@ def main():
             if card.due_date() == datetime.date.today():
                 cards_md += f"- {' / '.join(card.id)}\n"
         st.markdown(cards_md)
+
+    if mode == "Git":
+        st.markdown("# Git")
+        root_dir = st.selectbox("Directory", options=root_dirs)
+        subprocess_kwargs = dict(
+            cwd=str(root_dir),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if st.button("Status"):
+            st.code(subprocess.run(["git", "status"], **subprocess_kwargs).stdout,)
+        if st.button("Pull"):
+            st.code(subprocess.run(["git", "pull"], **subprocess_kwargs).stdout,)
+        if st.button("Push"):
+            st.code(
+                subprocess.run(
+                    ["git", "commit", "-a", "-m", f"Streamlit autocommit: {datetime.datetime.now()}"],
+                    **subprocess_kwargs,
+                ).stdout,
+            )
+            st.code(subprocess.run(["git", "push"], **subprocess_kwargs).stdout,)
 
 
 def _read_card_mds(root_dir: Path) -> List[CardMd]:
