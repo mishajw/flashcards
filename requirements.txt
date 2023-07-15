@@ -1,5 +1,5 @@
 mypy==0.982
 black==22.10.0
-streamlit==1.16.0
+streamlit==1.24.0
 matplotlib==3.6.2
 isort==5.11.3

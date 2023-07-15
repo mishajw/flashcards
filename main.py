@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import itertools
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -24,6 +25,11 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 
 def main():
+    password = os.environ.get("FLASHCARDS_PASSWORD", None)
+    if password is not None and st.password_input("Password") != password:
+        st.write("Incorrect password")
+        return
+
     cards: List[Card] = []
     root_dirs = list(map(pathlib.Path, sys.argv[1:]))
     for root_dir in root_dirs:
