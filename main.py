@@ -26,7 +26,7 @@ IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 def main():
     password = os.environ.get("FLASHCARDS_PASSWORD", None)
-    if password is not None and st.password_input("Password") != password:
+    if password is not None and st.text_input("Password", type="password") != password:
         st.write("Incorrect password")
         return
 
