@@ -110,7 +110,7 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
     skip_card_ids: List[Tuple[str, ...]] = []
     for md_path in md_paths:
         md = md_path.read_text()
-        headings: Tuple[str, ...] = (md_path.name,)
+        headings: Tuple[str, ...] = (str(md_path.relative_to(root_dir)),)
         should_store_line = True
         for line in md.split("\n"):
             heading_match = re.match("^(#+) (.*)", line)
@@ -141,9 +141,7 @@ def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.C
             card_histories = json.load(f)
         for card_history in card_histories:
             result[tuple(card_history["headings"])] = spaced_repetition.CardStats(
-                next_revision=datetime.datetime.strptime(
-                    card_history["next_revision"], DATETIME_FMT
-                ),
+                next_revision=datetime.datetime.strptime(card_history["next_revision"], DATETIME_FMT),
                 last_successful_revision=datetime.datetime.strptime(
                     card_history["last_successful_revision"], DATETIME_FMT
                 )
@@ -169,9 +167,7 @@ def _write_card_stats(cards: List[Card]) -> None:
                 dict(
                     headings=list(card.id),
                     next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
-                    last_successful_revision=card.card_stats.last_successful_revision.strftime(
-                        DATETIME_FMT
-                    )
+                    last_successful_revision=card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
                     if card.card_stats.last_successful_revision is not None
                     else None,
                     num_revisions=card.card_stats.num_revisions,
