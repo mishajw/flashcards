@@ -39,7 +39,9 @@ def main():
         cards.extend(
             Card(
                 id=card_md.id,
-                card_stats=card_histories.get(card_md.id, spaced_repetition.default_card_stats()),
+                card_stats=card_histories.get(
+                    card_md.id, spaced_repetition.default_card_stats()
+                ),
                 root_dir=root_dir,
                 md=card_md.md,
             )
@@ -49,13 +51,17 @@ def main():
     mode = st.selectbox("Mode", options=["Revise", "Stats", "Git"])
 
     if mode == "Revise":
-        revision_cards = list(filter(lambda c: c.due_date() == datetime.date.today(), cards))
+        revision_cards = list(
+            filter(lambda c: c.due_date() == datetime.date.today(), cards)
+        )
         if not revision_cards:
             st.write("No cards!")
             return
         card = min(
             revision_cards,
-            key=lambda c: hashlib.sha256(str((c.id, c.card_stats)).encode()).hexdigest(),
+            key=lambda c: hashlib.sha256(
+                str((c.id, c.card_stats)).encode()
+            ).hexdigest(),
         )
 
         ratings = ["Failed", "Hard", "OK", "Easy"]
@@ -99,7 +105,9 @@ def main():
         st.markdown("# Stats")
         st.write(f"Number of cards: {len(cards)}")
 
-        df = pd.DataFrame([dict(id=card.id, due_date=card.due_date()) for card in cards])
+        df = pd.DataFrame(
+            [dict(id=card.id, due_date=card.due_date()) for card in cards]
+        )
         df = df.groupby("due_date").count()
         fig, ax = plt.subplots(figsize=(8, 4))
         df.plot.bar(ax=ax)
@@ -121,17 +129,29 @@ def main():
             stderr=subprocess.STDOUT,
         )
         if st.button("Status"):
-            st.code(subprocess.run(["git", "status"], **subprocess_kwargs).stdout,)
+            st.code(
+                subprocess.run(["git", "status"], **subprocess_kwargs).stdout,
+            )
         if st.button("Pull"):
-            st.code(subprocess.run(["git", "pull"], **subprocess_kwargs).stdout,)
+            st.code(
+                subprocess.run(["git", "pull"], **subprocess_kwargs).stdout,
+            )
         if st.button("Push"):
             st.code(
                 subprocess.run(
-                    ["git", "commit", "-a", "-m", f"Streamlit autocommit: {datetime.datetime.now()}"],
+                    [
+                        "git",
+                        "commit",
+                        "-a",
+                        "-m",
+                        f"Streamlit autocommit: {datetime.datetime.now()}",
+                    ],
                     **subprocess_kwargs,
                 ).stdout,
             )
-            st.code(subprocess.run(["git", "push"], **subprocess_kwargs).stdout,)
+            st.code(
+                subprocess.run(["git", "push"], **subprocess_kwargs).stdout,
+            )
 
 
 def _read_card_mds(root_dir: Path) -> List[CardMd]:
@@ -163,7 +183,9 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
     return [CardMd(card_id, md) for card_id, md in result.items()]
 
 
-def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.CardStats]:
+def _read_card_stats(
+    root_dir: pathlib.Path,
+) -> Dict[CardId, spaced_repetition.CardStats]:
     result: Dict[CardId, spaced_repetition.CardStats] = {}
     history_path = root_dir / STATE_FILE
     if history_path.is_file():
@@ -171,12 +193,16 @@ def _read_card_stats(root_dir: pathlib.Path) -> Dict[CardId, spaced_repetition.C
             card_histories = json.load(f)
         for card_history in card_histories:
             result[tuple(card_history["headings"])] = spaced_repetition.CardStats(
-                next_revision=datetime.datetime.strptime(card_history["next_revision"], DATETIME_FMT),
-                last_successful_revision=datetime.datetime.strptime(
-                    card_history["last_successful_revision"], DATETIME_FMT
-                )
-                if card_history.get("last_successful_revision", None) is not None
-                else None,
+                next_revision=datetime.datetime.strptime(
+                    card_history["next_revision"], DATETIME_FMT
+                ),
+                last_successful_revision=(
+                    datetime.datetime.strptime(
+                        card_history["last_successful_revision"], DATETIME_FMT
+                    )
+                    if card_history.get("last_successful_revision", None) is not None
+                    else None
+                ),
                 num_revisions=card_history["num_revisions"],
                 num_failures=card_history.get("num_failures", 0),
                 last_interval_days=card_history["last_interval_days"],
@@ -197,9 +223,11 @@ def _write_card_stats(cards: List[Card]) -> None:
                 dict(
                     headings=list(card.id),
                     next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
-                    last_successful_revision=card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
-                    if card.card_stats.last_successful_revision is not None
-                    else None,
+                    last_successful_revision=(
+                        card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
+                        if card.card_stats.last_successful_revision is not None
+                        else None
+                    ),
                     num_revisions=card.card_stats.num_revisions,
                     num_failures=card.card_stats.num_failures,
                     last_interval_days=card.card_stats.last_interval_days,
