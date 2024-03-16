@@ -167,7 +167,7 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
             skip_match = re.match(r"^\s*<!--\s*flashcards:\s*skip\s*-->\s*$", line)
             if heading_match:
                 heading_number = max(len(heading_match[1]) - 1, 1)
-                heading = heading_match[2]
+                heading = heading_match[2].strip()
                 assert len(headings) >= heading_number
                 headings = (*headings[:heading_number], heading)
             elif skip_match:
@@ -192,7 +192,8 @@ def _read_card_stats(
         with history_path.open("r") as f:
             card_histories = json.load(f)
         for card_history in card_histories:
-            result[tuple(card_history["headings"])] = spaced_repetition.CardStats(
+            headings = tuple(heading.strip() for heading in card_history["headings"])
+            result[headings] = spaced_repetition.CardStats(
                 next_revision=datetime.datetime.strptime(
                     card_history["next_revision"], DATETIME_FMT
                 ),
