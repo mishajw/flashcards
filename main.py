@@ -122,19 +122,19 @@ def main():
     if mode == "Git":
         st.markdown("# Git")
         root_dir = st.selectbox("Directory", options=root_dirs)
-        subprocess_kwargs = dict(
-            cwd=str(root_dir),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
+        run_kwargs = {
+            'cwd': str(root_dir),
+            'text': True,
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.STDOUT,
+        }
         if st.button("Status"):
             st.code(
-                subprocess.run(["git", "status"], **subprocess_kwargs).stdout,
+                subprocess.run(["git", "status"], **run_kwargs).stdout,
             )
         if st.button("Pull"):
             st.code(
-                subprocess.run(["git", "pull"], **subprocess_kwargs).stdout,
+                subprocess.run(["git", "pull"], **run_kwargs).stdout,
             )
         if st.button("Push"):
             st.code(
@@ -146,11 +146,11 @@ def main():
                         "-m",
                         f"Streamlit autocommit: {datetime.datetime.now()}",
                     ],
-                    **subprocess_kwargs,
+                    **run_kwargs,
                 ).stdout,
             )
             st.code(
-                subprocess.run(["git", "push"], **subprocess_kwargs).stdout,
+                subprocess.run(["git", "push"], **run_kwargs).stdout,
             )
 
 
