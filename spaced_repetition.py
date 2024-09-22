@@ -21,6 +21,7 @@ def default_card_stats() -> CardStats:
         num_failures=0,
         last_interval_days=1,
         e_factor=DEFAULT_E_FACTOR,
+        first_seen=datetime.datetime.now()
     )
 
 

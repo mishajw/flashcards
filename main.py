@@ -208,6 +208,10 @@ def _read_card_stats(
                 num_failures=card_history.get("num_failures", 0),
                 last_interval_days=card_history["last_interval_days"],
                 e_factor=card_history["e_factor"],
+                first_seen=datetime.datetime.strptime(
+                    card_history.get("first_seen", card_history["next_revision"]),
+                    DATETIME_FMT
+                ),
             )
     return result
 
@@ -233,6 +237,7 @@ def _write_card_stats(cards: List[Card]) -> None:
                     num_failures=card.card_stats.num_failures,
                     last_interval_days=card.card_stats.last_interval_days,
                     e_factor=card.card_stats.e_factor,
+                    first_seen=card.card_stats.first_seen.strftime(DATETIME_FMT),
                 )
             )
         with (root_dir / STATE_FILE).open("w") as f:

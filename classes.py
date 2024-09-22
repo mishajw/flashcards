@@ -33,3 +33,4 @@ class CardStats:
     num_failures: int
     last_interval_days: int
     e_factor: float
+    first_seen: datetime.datetime
