@@ -31,22 +31,21 @@ def main():
         return
 
     cards: List[Card] = []
-    root_dirs = list(map(pathlib.Path, sys.argv[1:]))
-    for root_dir in root_dirs:
-        assert root_dir.is_dir(), root_dir
-        card_mds = _read_card_mds(root_dir)
-        card_histories = _read_card_stats(root_dir)
-        cards.extend(
-            Card(
-                id=card_md.id,
-                card_stats=card_histories.get(
-                    card_md.id, spaced_repetition.default_card_stats()
-                ),
-                root_dir=root_dir,
-                md=card_md.md,
-            )
-            for card_md in card_mds
+    root_dir = pathlib.Path(sys.argv[1])
+    assert root_dir.is_dir(), root_dir
+    card_mds = _read_card_mds(root_dir)
+    card_histories = _read_card_stats(root_dir)
+    cards.extend(
+        Card(
+            id=card_md.id,
+            card_stats=card_histories.get(
+                card_md.id, spaced_repetition.default_card_stats()
+            ),
+            root_dir=root_dir,
+            md=card_md.md,
         )
+        for card_md in card_mds
+    )
 
     mode = st.selectbox("Mode", options=["Revise", "Stats", "Git"])
 
@@ -121,7 +120,6 @@ def main():
 
     if mode == "Git":
         st.markdown("# Git")
-        root_dir = st.selectbox("Directory", options=root_dirs)
         run_kwargs = {
             'cwd': str(root_dir),
             'text': True,
@@ -218,30 +216,26 @@ def _read_card_stats(
 
 def _write_card_stats(cards: List[Card]) -> None:
     cards = sorted(cards, key=lambda card: card.id)
-    cards = sorted(cards, key=lambda card: card.root_dir)
-    cards_grouped = itertools.groupby(cards, key=lambda card: card.root_dir)
-    for root_dir, card_group in cards_grouped:
-        result = []
-        for card in card_group:
-            assert card.root_dir == root_dir
-            result.append(
-                dict(
-                    headings=list(card.id),
-                    next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
-                    last_successful_revision=(
-                        card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
-                        if card.card_stats.last_successful_revision is not None
-                        else None
-                    ),
-                    num_revisions=card.card_stats.num_revisions,
-                    num_failures=card.card_stats.num_failures,
-                    last_interval_days=card.card_stats.last_interval_days,
-                    e_factor=card.card_stats.e_factor,
-                    first_seen=card.card_stats.first_seen.strftime(DATETIME_FMT),
-                )
+    result = []
+    for card in cards:
+        result.append(
+            dict(
+                headings=list(card.id),
+                next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
+                last_successful_revision=(
+                    card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
+                    if card.card_stats.last_successful_revision is not None
+                    else None
+                ),
+                num_revisions=card.card_stats.num_revisions,
+                num_failures=card.card_stats.num_failures,
+                last_interval_days=card.card_stats.last_interval_days,
+                e_factor=card.card_stats.e_factor,
+                first_seen=card.card_stats.first_seen.strftime(DATETIME_FMT),
             )
-        with (root_dir / STATE_FILE).open("w") as f:
-            json.dump(result, f, indent=4)
+        )
+    with (cards[0].root_dir / STATE_FILE).open("w") as f:
+        json.dump(result, f, indent=4)
 
 
 if __name__ == "__main__":
