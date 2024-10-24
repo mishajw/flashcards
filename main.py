@@ -54,7 +54,7 @@ def main():
     if n_new_cards > 0:
         st.write(f"Added {n_new_cards} new cards")
 
-    mode = st.selectbox("Mode", options=["Revise", "Stats", "Git"])
+    mode = st.selectbox("Mode", options=["Revise", "Stats", "Git", "Browse"])
 
     if mode == "Revise":
         due_dates = {
@@ -116,47 +116,7 @@ def main():
             st.rerun()
 
         st.write("---")
-        with st.expander("Card details"):
-            st.write(
-                {
-                    "id": card.id,
-                    "path": card.path.relative_to(root_dir),
-                    "due": due_dates[card.id].strftime(DATETIME_FMT)
-                    if due_dates[card.id]
-                    else None,
-                    "interval": histories[card.id].get_interval(),
-                    "n_events": len(histories[card.id].events),
-                    "n_events_by_type": {
-                        event_type: len(
-                            [
-                                e
-                                for e in histories[card.id].events
-                                if e.type == event_type
-                            ]
-                        )
-                        for event_type in ["again", "decrease", "same", "increase"]
-                    },
-                    "first_seen": histories[card.id].first_seen.strftime(DATETIME_FMT),
-                    "first_event": histories[card.id]
-                    .events[0]
-                    .time.strftime(DATETIME_FMT)
-                    if histories[card.id].events
-                    else None,
-                    "last_event": histories[card.id]
-                    .events[-1]
-                    .time.strftime(DATETIME_FMT)
-                    if histories[card.id].events
-                    else None,
-                }
-            )
-        for i, title in enumerate(card.headings):
-            st.markdown(("#" * (i + 3)) + " " + title)
-        if st.button("Show"):
-            md = MD_IMAGE_REGEX.sub("", card.md)
-            st.markdown(md)
-            for alt_text, path in MD_IMAGE_REGEX.findall(card.md):
-                # TODO: Clean this up.
-                st.image(str(IMAGE_ROOT_DIR / path[1:]), alt_text)
+        _display_card(card, histories[card.id], due_dates[card.id], root_dir)
 
     if mode == "Stats":
         st.markdown("# Stats")
@@ -211,6 +171,55 @@ def main():
             st.code(
                 subprocess.run(["git", "push"], **run_kwargs).stdout,
             )
+
+    if mode == "Browse":
+        st.markdown("# Browse")
+        selected_card = st.selectbox(
+            "Select a card",
+            options=cards,
+            format_func=lambda card: f"{card.path.relative_to(root_dir)} - {card.id}",
+        )
+        if selected_card:
+            _display_card(
+                selected_card,
+                histories[selected_card.id],
+                histories[selected_card.id].get_due_date(),
+                root_dir,
+            )
+
+
+def _display_card(
+    card: Card, history: CardHistory, due_date: datetime.datetime, root_dir: Path
+):
+    with st.expander("Card details"):
+        st.write(
+            {
+                "id": card.id,
+                "path": card.path.relative_to(root_dir),
+                "due": due_date.strftime(DATETIME_FMT) if due_date else None,
+                "interval": history.get_interval(),
+                "n_events": len(history.events),
+                "n_events_by_type": {
+                    event_type: len([e for e in history.events if e.type == event_type])
+                    for event_type in ["again", "decrease", "same", "increase"]
+                },
+                "first_seen": history.first_seen.strftime(DATETIME_FMT),
+                "first_event": history.events[0].time.strftime(DATETIME_FMT)
+                if history.events
+                else None,
+                "last_event": history.events[-1].time.strftime(DATETIME_FMT)
+                if history.events
+                else None,
+            }
+        )
+    for i, title in enumerate(card.headings):
+        st.markdown(("#" * (i + 3)) + " " + title)
+    if st.button("Show"):
+        md = MD_IMAGE_REGEX.sub("", card.md)
+        st.markdown(md)
+        for alt_text, path in MD_IMAGE_REGEX.findall(card.md):
+            # TODO: Clean this up.
+            st.image(str(IMAGE_ROOT_DIR / path[1:]), alt_text)
 
 
 if __name__ == "__main__":
