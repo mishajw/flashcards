@@ -14,13 +14,14 @@ from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+from pydantic.main import BaseModel
 
-import spaced_repetition
-from classes import Card, CardId, CardMd
+from cards import Card, read_cards
+from histories import CardEvent, CardEventType, CardHistory
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
-STATE_FILE = ".flashcards.json"
-MD_IMAGE_REGEX = re.compile("!\[(.*)\]\((.*)\)")
+STATE_FILE = ".flashcards.jsonl"
+MD_IMAGE_REGEX = re.compile(r"!\[(.*)\]\((.*)\)")
 IMAGE_ROOT_DIR = pathlib.Path("../site/html")
 
 
@@ -30,68 +31,125 @@ def main():
         st.write("Incorrect password")
         return
 
-    cards: List[Card] = []
+    _, root_dir = sys.argv
     root_dir = pathlib.Path(sys.argv[1])
     assert root_dir.is_dir(), root_dir
-    card_mds = _read_card_mds(root_dir)
-    card_histories = _read_card_stats(root_dir)
-    cards.extend(
-        Card(
-            id=card_md.id,
-            card_stats=card_histories.get(
-                card_md.id, spaced_repetition.default_card_stats()
-            ),
-            root_dir=root_dir,
-            md=card_md.md,
-        )
-        for card_md in card_mds
-    )
+
+    (root_dir / STATE_FILE).touch()
+    cards: list[Card] = read_cards(root_dir)
+    histories: dict[str, CardHistory] = {
+        (h := CardHistory.parse_raw(line)).id: h
+        for line in (root_dir / STATE_FILE).read_text().splitlines()
+    }
+
+    n_new_cards = 0
+    for card_md in cards:
+        if card_md.id not in histories:
+            histories[card_md.id] = CardHistory(
+                id=card_md.id,
+                events=[],
+                first_seen=datetime.datetime.now(),
+            )
+            n_new_cards += 1
+    if n_new_cards > 0:
+        st.write(f"Added {n_new_cards} new cards")
 
     mode = st.selectbox("Mode", options=["Revise", "Stats", "Git"])
 
     if mode == "Revise":
-        revision_cards = list(
-            filter(lambda c: c.due_date() == datetime.date.today(), cards)
-        )
-        if not revision_cards:
+        due_dates = {
+            card_md.id: histories[card_md.id].get_due_date() for card_md in cards
+        }
+        overdue_cards = [
+            card_md
+            for card_md in cards
+            if due_dates[card_md.id] < datetime.datetime.now()
+        ]
+        if not overdue_cards:
             st.write("No cards!")
             return
+        card_last_modified: dict[str, datetime.datetime | None] = {
+            card_md.id: histories[card_md.id].events[-1].time
+            if histories[card_md.id].events
+            else None
+            for card_md in cards
+        }
         card = min(
-            revision_cards,
+            overdue_cards,
             key=lambda c: hashlib.sha256(
-                str((c.id, c.card_stats)).encode()
+                str((c.id, card_last_modified[c.id])).encode()
             ).hexdigest(),
         )
 
-        ratings = ["Failed", "Hard", "OK", "Easy"]
-        quality = None
-        due_column, *columns = st.columns([1] * (len(ratings) + 1))
+        due_column, *columns = st.columns([1] * (5))
         with due_column:
             this_morning = datetime.datetime.combine(
                 datetime.date.today(),
                 datetime.datetime.min.time(),
             )
             num_cards_revised_today = len(
-                [
-                    card
-                    for card in cards
-                    if card.card_stats.last_successful_revision is not None
-                    and card.card_stats.last_successful_revision >= this_morning
-                ]
+                [card for card in cards if histories[card.id].done_today()]
             )
-            st.write(f"**{len(revision_cards)} due, {num_cards_revised_today} done**")
-        for i, (rating, column) in enumerate(zip(ratings, columns)):
+            st.write(f"**{len(overdue_cards)} due, {num_cards_revised_today} done**")
+
+        labels: dict[CardEventType, str] = {
+            "again": "↻",
+            "decrease": "/2",
+            "same": "=",
+            "increase": "*2",
+        }
+        event_type = None
+        for (type, label), column in zip(labels.items(), columns):
             with column:
-                if st.button(rating):
-                    quality = i
-        if quality is not None:
-            card.card_stats = spaced_repetition.update_history(card.card_stats, quality)
-            _write_card_stats(cards)
-            st.experimental_rerun()
+                if st.button(label):
+                    event_type = type
+        if event_type is not None:
+            histories[card.id].events.append(
+                CardEvent(
+                    time=datetime.datetime.now(),
+                    type=event_type,
+                )
+            )
+            with (root_dir / STATE_FILE).open("w") as f:
+                for history in histories.values():
+                    f.write(history.json() + "\n")
+            st.rerun()
 
         st.write("---")
-        st.write(f"`{card.root_dir}` / `{card.id[0]}`")
-        for i, title in enumerate(card.id[1:]):
+        with st.expander("Card details"):
+            st.write(
+                {
+                    "id": card.id,
+                    "path": card.path.relative_to(root_dir),
+                    "due": due_dates[card.id].strftime(DATETIME_FMT)
+                    if due_dates[card.id]
+                    else None,
+                    "interval": histories[card.id].get_interval(),
+                    "n_events": len(histories[card.id].events),
+                    "n_events_by_type": {
+                        event_type: len(
+                            [
+                                e
+                                for e in histories[card.id].events
+                                if e.type == event_type
+                            ]
+                        )
+                        for event_type in ["again", "decrease", "same", "increase"]
+                    },
+                    "first_seen": histories[card.id].first_seen.strftime(DATETIME_FMT),
+                    "first_event": histories[card.id]
+                    .events[0]
+                    .time.strftime(DATETIME_FMT)
+                    if histories[card.id].events
+                    else None,
+                    "last_event": histories[card.id]
+                    .events[-1]
+                    .time.strftime(DATETIME_FMT)
+                    if histories[card.id].events
+                    else None,
+                }
+            )
+        for i, title in enumerate(card.headings):
             st.markdown(("#" * (i + 3)) + " " + title)
         if st.button("Show"):
             md = MD_IMAGE_REGEX.sub("", card.md)
@@ -105,7 +163,10 @@ def main():
         st.write(f"Number of cards: {len(cards)}")
 
         df = pd.DataFrame(
-            [dict(id=card.id, due_date=card.due_date()) for card in cards]
+            [
+                dict(id=card.id, due_date=histories[card.id].get_due_date())
+                for card in cards
+            ]
         )
         df = df.groupby("due_date").count()
         fig, ax = plt.subplots(figsize=(8, 4))
@@ -114,17 +175,17 @@ def main():
 
         cards_md = "Due:\n\n"
         for card in cards:
-            if card.due_date() == datetime.date.today():
+            if histories[card.id].get_due_date().date() == datetime.date.today():
                 cards_md += f"- {' / '.join(card.id)}\n"
         st.markdown(cards_md)
 
     if mode == "Git":
         st.markdown("# Git")
         run_kwargs = {
-            'cwd': str(root_dir),
-            'text': True,
-            'stdout': subprocess.PIPE,
-            'stderr': subprocess.STDOUT,
+            "cwd": str(root_dir),
+            "text": True,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
         }
         if st.button("Status"):
             st.code(
@@ -150,92 +211,6 @@ def main():
             st.code(
                 subprocess.run(["git", "push"], **run_kwargs).stdout,
             )
-
-
-def _read_card_mds(root_dir: Path) -> List[CardMd]:
-    md_paths = list(root_dir.rglob("*.md"))
-    result: Dict[CardId, str] = defaultdict(str)
-    skip_card_ids: List[Tuple[str, ...]] = []
-    for md_path in md_paths:
-        md = md_path.read_text()
-        headings: Tuple[str, ...] = (str(md_path.relative_to(root_dir)),)
-        should_store_line = True
-        for line in md.split("\n"):
-            heading_match = re.match("^(#+) (.*)", line)
-            skip_match = re.match(r"^\s*<!--\s*flashcards:\s*skip\s*-->\s*$", line)
-            if heading_match:
-                heading_number = max(len(heading_match[1]) - 1, 1)
-                heading = heading_match[2].strip()
-                assert len(headings) >= heading_number, (headings, heading_number)
-                headings = (*headings[:heading_number], heading)
-            elif skip_match:
-                skip_card_ids.append(headings)
-            elif line.startswith("---"):
-                should_store_line = not should_store_line
-            elif should_store_line:
-                result[headings] += line + "\n"
-    card_ids = list(result.keys())
-    for card_id in card_ids:
-        if result[card_id].strip() == "" or card_id in skip_card_ids:
-            del result[card_id]
-    return [CardMd(id=card_id, md=md) for card_id, md in result.items()]
-
-
-def _read_card_stats(
-    root_dir: pathlib.Path,
-) -> Dict[CardId, spaced_repetition.CardStats]:
-    result: Dict[CardId, spaced_repetition.CardStats] = {}
-    history_path = root_dir / STATE_FILE
-    if history_path.is_file():
-        with history_path.open("r") as f:
-            card_histories = json.load(f)
-        for card_history in card_histories:
-            headings = tuple(heading.strip() for heading in card_history["headings"])
-            result[headings] = spaced_repetition.CardStats(
-                next_revision=datetime.datetime.strptime(
-                    card_history["next_revision"], DATETIME_FMT
-                ),
-                last_successful_revision=(
-                    datetime.datetime.strptime(
-                        card_history["last_successful_revision"], DATETIME_FMT
-                    )
-                    if card_history.get("last_successful_revision", None) is not None
-                    else None
-                ),
-                num_revisions=card_history["num_revisions"],
-                num_failures=card_history.get("num_failures", 0),
-                last_interval_days=card_history["last_interval_days"],
-                e_factor=card_history["e_factor"],
-                first_seen=datetime.datetime.strptime(
-                    card_history.get("first_seen", card_history["next_revision"]),
-                    DATETIME_FMT
-                ),
-            )
-    return result
-
-
-def _write_card_stats(cards: List[Card]) -> None:
-    cards = sorted(cards, key=lambda card: card.id)
-    result = []
-    for card in cards:
-        result.append(
-            dict(
-                headings=list(card.id),
-                next_revision=card.card_stats.next_revision.strftime(DATETIME_FMT),
-                last_successful_revision=(
-                    card.card_stats.last_successful_revision.strftime(DATETIME_FMT)
-                    if card.card_stats.last_successful_revision is not None
-                    else None
-                ),
-                num_revisions=card.card_stats.num_revisions,
-                num_failures=card.card_stats.num_failures,
-                last_interval_days=card.card_stats.last_interval_days,
-                e_factor=card.card_stats.e_factor,
-                first_seen=card.card_stats.first_seen.strftime(DATETIME_FMT),
-            )
-        )
-    with (cards[0].root_dir / STATE_FILE).open("w") as f:
-        json.dump(result, f, indent=4)
 
 
 if __name__ == "__main__":

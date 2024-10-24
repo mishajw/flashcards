@@ -9,5 +9,5 @@ run:
 
 .PHONY: format
 format:
-	.env/bin/black --line-length 100 *.py
+	.env/bin/black --line-length 88 *.py
 	.env/bin/isort *.py
