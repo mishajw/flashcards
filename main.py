@@ -33,7 +33,7 @@ def main():
     cards: List[Card] = []
     root_dirs = list(map(pathlib.Path, sys.argv[1:]))
     for root_dir in root_dirs:
-        assert root_dir.is_dir()
+        assert root_dir.is_dir(), root_dir
         card_mds = _read_card_mds(root_dir)
         card_histories = _read_card_stats(root_dir)
         cards.extend(
@@ -168,7 +168,7 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
             if heading_match:
                 heading_number = max(len(heading_match[1]) - 1, 1)
                 heading = heading_match[2].strip()
-                assert len(headings) >= heading_number
+                assert len(headings) >= heading_number, (headings, heading_number)
                 headings = (*headings[:heading_number], heading)
             elif skip_match:
                 skip_card_ids.append(headings)
@@ -180,7 +180,7 @@ def _read_card_mds(root_dir: Path) -> List[CardMd]:
     for card_id in card_ids:
         if result[card_id].strip() == "" or card_id in skip_card_ids:
             del result[card_id]
-    return [CardMd(card_id, md) for card_id, md in result.items()]
+    return [CardMd(id=card_id, md=md) for card_id, md in result.items()]
 
 
 def _read_card_stats(
