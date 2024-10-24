@@ -74,12 +74,8 @@ def main():
             else None
             for card_md in cards
         }
-        card = min(
-            overdue_cards,
-            key=lambda c: hashlib.sha256(
-                str((c.id, card_last_modified[c.id])).encode()
-            ).hexdigest(),
-        )
+        overdue_cards_sorted = _sort_cards(overdue_cards, histories)
+        card = overdue_cards_sorted[0]
 
         due_column, *columns = st.columns([1] * (5))
         with due_column:
@@ -220,6 +216,29 @@ def _display_card(
         for alt_text, path in MD_IMAGE_REGEX.findall(card.md):
             # TODO: Clean this up.
             st.image(str(IMAGE_ROOT_DIR / path[1:]), alt_text)
+
+
+def _sort_cards(cards: list[Card], histories: dict[str, CardHistory]) -> list[Card]:
+    fresh_start = datetime.datetime(2024, 10, 25)
+    return sorted(
+        cards,
+        key=lambda card: (
+            not (
+                histories[card.id].first_seen >= fresh_start
+                or card.path.parts[-1] == "nntd.md"
+            ),
+            hashlib.sha256(
+                str(
+                    (
+                        card.id,
+                        histories[card.id].events[-1].time
+                        if histories[card.id].events
+                        else None,
+                    )
+                ).encode()
+            ).hexdigest(),
+        ),
+    )
 
 
 if __name__ == "__main__":
