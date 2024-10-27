@@ -151,6 +151,12 @@ def main():
             st.code(
                 subprocess.run(["git", "pull"], **run_kwargs).stdout,
             )
+            st.code(
+                subprocess.run(
+                    ["git", "submodule", "update", "--init", "--recursive"],
+                    **run_kwargs,
+                ).stdout,
+            )
         if st.button("Push"):
             st.code(
                 subprocess.run(
@@ -208,6 +214,7 @@ def _display_card(
                 else None,
             }
         )
+    st.write(f"{card.id} | interval={history.get_interval().days} days")
     for i, title in enumerate(card.headings):
         st.markdown(("#" * (i + 3)) + " " + title)
     if st.button("Show"):

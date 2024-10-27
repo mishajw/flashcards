@@ -18,7 +18,8 @@ class CardHistory(BaseModel):
     first_seen: datetime.datetime
 
     def get_due_date(self) -> datetime.datetime:
-        return self._get_due_date(self.events)
+        due_date = self._get_due_date(self.events)
+        return due_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
     def get_interval(self) -> datetime.timedelta:
         days = 1
@@ -44,10 +45,7 @@ class CardHistory(BaseModel):
 
     def _get_due_date(self, events: list[CardEvent]) -> datetime.datetime:
         if len(events) == 0:
-            return datetime.datetime.combine(
-                datetime.date.today(),
-                datetime.time.min,
-            )
+            return self.first_seen
         if events[-1].type == "again":
             return self._get_due_date(events[:-1])
         interval = self.get_interval()
