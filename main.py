@@ -129,10 +129,28 @@ def main():
         df.plot.bar(ax=ax)
         st.pyplot(fig)
 
+        df = pd.DataFrame(
+            [
+                dict(id=card.id, date=event.time.date(), type=event.type)
+                for card in cards
+                for event in histories[card.id].events
+            ]
+        )
+        df['count'] = 1
+        df_grouped = df.groupby(['date', 'type'])['count'].sum().unstack(fill_value=0)
+        df_grouped['Total'] = df_grouped.sum(axis=1)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        df_grouped.plot(ax=ax, kind='line', marker='o')
+        plt.title('Number of events over time')
+        plt.xlabel('Date')
+        plt.ylabel('Number of Events')
+        plt.legend(title='Event Type')
+        st.pyplot(fig)
+
         cards_md = "Due:\n\n"
         for card in cards:
-            if histories[card.id].get_due_date().date() == datetime.date.today():
-                cards_md += f"- {' / '.join(card.id)}\n"
+            if histories[card.id].get_due_date().date() <= datetime.date.today():
+                cards_md += f"- {' / '.join(card.headings)}\n"
         st.markdown(cards_md)
 
     if mode == "Git":
